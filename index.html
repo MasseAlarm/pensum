@@ -18,7 +18,7 @@
   --accent:#2c43c4; --accent-soft:#e3e7fb; --on-accent:#ffffff;
   --mark:#ffd23f; --mark-ink:#3a2e00;
   --danger:#b8392b; --danger-soft:#f9e4e1; --ok:#2b7a4b; --scrim:rgba(12,15,26,.38);
-  --tint:13%; --tint-b:38%;
+  --tint:13%; --tint-b:38%; --hl:var(--mark);
   --f-display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -29,7 +29,7 @@
     --accent:#8fa0ff; --accent-soft:#242b4d; --on-accent:#0c1030;
     --mark:#e6b92b; --mark-ink:#1c1600;
     --danger:#ff8b7c; --danger-soft:#3a201d; --ok:#6fcf97; --scrim:rgba(0,0,0,.55);
-    --tint:22%; --tint-b:45%;
+    --tint:22%; --tint-b:45%; --hl:rgba(230,185,43,.38);
     color-scheme:dark;
   }
 }
@@ -38,7 +38,7 @@
   --accent:#8fa0ff; --accent-soft:#242b4d; --on-accent:#0c1030;
   --mark:#e6b92b; --mark-ink:#1c1600;
   --danger:#ff8b7c; --danger-soft:#3a201d; --ok:#6fcf97; --scrim:rgba(0,0,0,.55);
-    --tint:22%; --tint-b:45%;
+    --tint:22%; --tint-b:45%; --hl:rgba(230,185,43,.38);
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -57,9 +57,6 @@ button:disabled{cursor:default;opacity:.55}
 .app{max-width:780px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 110px;display:flex;flex-direction:column;gap:18px}
 .app.wide{max-width:1140px}
 
-.tinted{background:color-mix(in srgb,var(--tc) var(--tint),var(--surface))}
-.card.tinted,.cchip.tinted{border-color:color-mix(in srgb,var(--tc) var(--tint-b),var(--line))}
-.mlist .cchip.tinted{background:color-mix(in srgb,var(--tc) calc(var(--tint) + 6%),var(--surface))}
 .swatches{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0}
 .sw{width:26px;height:26px;border-radius:50%;border:0;padding:0;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);display:grid;place-items:center;color:var(--muted);font-size:14px;line-height:1}
 .sw.none{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line)}
@@ -102,7 +99,7 @@ button:disabled{cursor:default;opacity:.55}
 .ghead{display:flex;align-items:baseline;gap:10px;padding:0 4px}
 .ghead h2{font-family:var(--f-display);font-weight:600;font-size:1.1rem;margin:0;letter-spacing:-.01em}
 .ghead .n,.ghead .sub{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-.g-today .ghead h2 span{background:linear-gradient(transparent 52%,var(--mark) 52%,var(--mark) 94%,transparent 94%);padding:0 4px;margin:0 -4px}
+.g-today .ghead h2 span{background:linear-gradient(transparent 52%,var(--hl) 52%,var(--hl) 94%,transparent 94%);padding:0 4px;margin:0 -4px}
 .g-over .ghead h2{color:var(--danger)}
 .rows{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 
@@ -212,7 +209,7 @@ input.sadd:focus{border-bottom-color:var(--accent)}
 .dname{font-weight:600}
 .dnum,.dcount{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .dcount{margin-left:auto}
-.day.today .dname{background:linear-gradient(transparent 52%,var(--mark) 52%,var(--mark) 94%,transparent 94%);padding:0 3px;margin:0 -3px}
+.day.today .dname{background:linear-gradient(transparent 52%,var(--hl) 52%,var(--hl) 94%,transparent 94%);padding:0 3px;margin:0 -3px}
 .load{height:3px;margin:0 10px 8px;background:var(--line);border-radius:2px;overflow:hidden}
 .load i{display:block;height:100%;background:var(--muted);border-radius:2px}
 .load.heavy i{background:var(--danger)}
@@ -291,6 +288,10 @@ input.sadd:focus{border-bottom-color:var(--accent)}
 .foot button:hover,.foot .fbtn:hover{color:var(--ink)}
 .sync{font-family:var(--f-mono);font-size:11.5px}
 .sync.off{color:var(--danger)}
+/* Farbtönung pro Aufgabe: steht am Ende, damit sie die normalen Hintergründe überschreibt */
+.task.tinted,.card.tinted,.cchip.tinted{background:color-mix(in srgb,var(--tc) var(--tint),var(--surface))}
+.card.tinted,.cchip.tinted{border-color:color-mix(in srgb,var(--tc) var(--tint-b),var(--line))}
+.mlist .cchip.tinted{background:color-mix(in srgb,var(--tc) calc(var(--tint) + 6%),var(--surface))}
 </style>
 </head>
 <body>
