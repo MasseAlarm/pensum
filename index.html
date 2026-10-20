@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#10131a" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-title" content="Pensum">
 <title>Pensum</title>
+<script>try{var pt=localStorage.getItem("pensum.theme");if(pt==="dark"||pt==="light")document.documentElement.setAttribute("data-theme",pt)}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -17,6 +18,7 @@
   --accent:#2c43c4; --accent-soft:#e3e7fb; --on-accent:#ffffff;
   --mark:#ffd23f; --mark-ink:#3a2e00;
   --danger:#b8392b; --danger-soft:#f9e4e1; --ok:#2b7a4b; --scrim:rgba(12,15,26,.38);
+  --tint:13%; --tint-b:38%;
   --f-display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -27,6 +29,7 @@
     --accent:#8fa0ff; --accent-soft:#242b4d; --on-accent:#0c1030;
     --mark:#e6b92b; --mark-ink:#1c1600;
     --danger:#ff8b7c; --danger-soft:#3a201d; --ok:#6fcf97; --scrim:rgba(0,0,0,.55);
+    --tint:22%; --tint-b:45%;
     color-scheme:dark;
   }
 }
@@ -35,6 +38,7 @@
   --accent:#8fa0ff; --accent-soft:#242b4d; --on-accent:#0c1030;
   --mark:#e6b92b; --mark-ink:#1c1600;
   --danger:#ff8b7c; --danger-soft:#3a201d; --ok:#6fcf97; --scrim:rgba(0,0,0,.55);
+    --tint:22%; --tint-b:45%;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -53,6 +57,16 @@ button:disabled{cursor:default;opacity:.55}
 .app{max-width:780px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 110px;display:flex;flex-direction:column;gap:18px}
 .app.wide{max-width:1140px}
 
+.tinted{background:color-mix(in srgb,var(--tc) var(--tint),var(--surface))}
+.card.tinted,.cchip.tinted{border-color:color-mix(in srgb,var(--tc) var(--tint-b),var(--line))}
+.mlist .cchip.tinted{background:color-mix(in srgb,var(--tc) calc(var(--tint) + 6%),var(--surface))}
+.swatches{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0}
+.sw{width:26px;height:26px;border-radius:50%;border:0;padding:0;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);display:grid;place-items:center;color:var(--muted);font-size:14px;line-height:1}
+.sw.none{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line)}
+.sw[aria-checked="true"]{outline:2px solid var(--ink);outline-offset:2px}
+.topr{display:flex;align-items:center;gap:8px}
+.themebtn{width:38px;height:38px;border:1px solid var(--line);background:var(--surface);border-radius:9px;display:grid;place-items:center;color:var(--ink);padding:0}
+.themebtn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 20px}
 .top h1{font-family:var(--f-display);font-weight:800;font-size:2.5rem;line-height:1;letter-spacing:-.025em;margin:0}
 .summary{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);margin:8px 0 0;font-variant-numeric:tabular-nums}
@@ -305,10 +319,13 @@ input.sadd:focus{border-bottom-color:var(--accent)}
       <h1>Pensum</h1>
       <p class="summary" id="summary">Lade …</p>
     </div>
+    <div class="topr">
+    <button type="button" class="themebtn" id="themeBtn"></button>
     <div class="seg" role="tablist" aria-label="Ansicht">
       <button type="button" role="tab" id="tabList" data-view="list" aria-selected="true">Liste</button>
       <button type="button" role="tab" id="tabBoard" data-view="board" aria-selected="false">Board</button>
       <button type="button" role="tab" id="tabCal" data-view="cal" aria-selected="false">Kalender</button>
+    </div>
     </div>
   </header>
 
@@ -356,6 +373,7 @@ input.sadd:focus{border-bottom-color:var(--accent)}
       <label for="ePrio">Priorität<select id="ePrio"><option value="1">Hoch</option><option value="2">Normal</option><option value="3">Niedrig</option></select></label>
       <label for="eStatus">Status<select id="eStatus"><option value="offen">Offen</option><option value="arbeit">In Arbeit</option><option value="erledigt">Erledigt</option></select></label>
     </div>
+    <div class="dsubs"><div class="dlabel" id="eColorLbl">Farbe</div><div class="swatches" id="eColors" role="radiogroup" aria-labelledby="eColorLbl"></div></div>
     <div class="dfoot"><button type="button" class="danger" id="eDelete">Löschen</button><button type="submit" class="primary" id="eSave">Speichern</button></div>
     <p class="created" id="eCreated"></p>
   </form>
@@ -451,7 +469,8 @@ function render(){
   renderSummary();renderChips();
   if(state.view==="list")renderList();else if(state.view==="board")renderBoard();else renderCal();
   const dl=$("#projList");dl.replaceChildren(...projects().map(p=>h("option",{value:p[0]})));
-  if(state.editing)renderDrawerSubs();
+  applyTints();
+  if(state.editing){renderDrawerSubs();renderColors()}
   if(state.focusAdd){const f=document.querySelector('[data-for="'+state.focusAdd+'"]');if(f)f.focus();state.focusAdd=null}
 }
 function renderSummary(){
@@ -480,6 +499,26 @@ function metaEl(t){const done=t.status==="erledigt";
     subs(t).length?h("button",{type:"button",class:"subtoggle"+(subDone(t)===subs(t).length?" full":""),"aria-expanded":String(state.expanded.has(t.id)),title:"Unteraufgaben ein-/ausklappen",onclick:()=>toggleExp(t.id)},h("span",{class:"chev","aria-hidden":"true"},"▶"),subProg(t)):null,
     t.notes&&h("span",{class:"note",title:t.notes},"· Notiz"),
     !done&&!subs(t).length&&!state.expanded.has(t.id)&&!state.readonly&&h("button",{type:"button",class:"addsub",onclick:()=>{state.focusAdd=t.id+":l";toggleExp(t.id)}},"+ Unteraufgaben"))}
+/* ---------- Farben ---------- */
+const COLORS=[["","Keine"],["#e5484d","Rot"],["#f76b15","Orange"],["#f5c400","Gelb"],["#30a46c","Grün"],["#12a594","Türkis"],["#3e63dd","Blau"],["#8e4ec6","Violett"],["#d6409f","Pink"],["#8b8d98","Grau"]];
+function applyTints(){
+  document.querySelectorAll("#list .task[data-id],#board .card[data-id],#cal .cchip[data-id]").forEach(el=>{
+    const t=state.tasks.get(el.dataset.id);const c=t&&t.color;
+    if(c){el.classList.add("tinted");el.style.setProperty("--tc",c)}else{el.classList.remove("tinted");el.style.removeProperty("--tc")}})}
+function renderColors(){const t=state.tasks.get(state.editing);const box=$("#eColors");if(!t||!box)return;
+  box.replaceChildren(...COLORS.map(([c,name])=>{const b=h("button",{type:"button",class:"sw"+(c?"":" none"),role:"radio","aria-checked":String((t.color||"")===c),"aria-label":name,title:name,disabled:state.readonly,
+    onclick:()=>{if((t.color||"")!==c)save(t.id,{color:c},"update")}},c?null:"–");if(c)b.style.setProperty("--c",c);return b}))}
+
+/* ---------- Hell / Dunkel ---------- */
+const SUN='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>';
+const MOON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7z"/></svg>';
+function isDark(){const a=document.documentElement.getAttribute("data-theme");return a?a==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches}
+function updateThemeBtn(){const d=isDark(),b=$("#themeBtn");b.innerHTML=d?SUN:MOON;b.setAttribute("aria-label",d?"Helles Design einschalten":"Dunkles Design einschalten");b.title=b.getAttribute("aria-label");
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute("content",d?"#10131a":"#eef0f5"))}
+$("#themeBtn").addEventListener("click",()=>{const next=isDark()?"light":"dark";document.documentElement.setAttribute("data-theme",next);lsSet("pensum.theme",next);updateThemeBtn()});
+try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",updateThemeBtn)}catch(e){}
+updateThemeBtn();
+
 /* ---------- Unteraufgaben ---------- */
 function subs(t){return Array.isArray(t.subtasks)?t.subtasks:[]}
 function subDone(t){return subs(t).filter(x=>x.done).length}
@@ -704,10 +743,10 @@ let sb=null,session=null,channel=null,startedFor=null;
 const queues=new Map();
 function newId(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,9)}
 function clean(t){const o=Object.assign({},t);delete o.id;return o}
-const FIELD={title:"title",notes:"notes",project:"project",prio:"prio",due:"due",status:"status",created:"created",doneAt:"done_at",order:"ord",subtasks:"subtasks"};
+const FIELD={title:"title",notes:"notes",project:"project",prio:"prio",due:"due",status:"status",created:"created",doneAt:"done_at",order:"ord",subtasks:"subtasks",color:"color"};
 function toRow(data){const r={};for(const k in FIELD){if(k in data)r[FIELD[k]]=data[k]===undefined?null:data[k]}
   if("title" in r&&r.title==null)r.title="";if("notes" in r&&r.notes==null)r.notes="";if("project" in r&&r.project==null)r.project="";if("subtasks" in r&&!Array.isArray(r.subtasks))r.subtasks=[];return r}
-function fromRow(r){return {id:r.id,title:r.title||"",notes:r.notes||"",project:r.project||"",prio:r.prio||2,due:r.due||null,status:r.status||"offen",created:r.created,doneAt:r.done_at||null,order:typeof r.ord==="number"?r.ord:null,subtasks:Array.isArray(r.subtasks)?r.subtasks:[]}}
+function fromRow(r){return {id:r.id,title:r.title||"",notes:r.notes||"",project:r.project||"",prio:r.prio||2,due:r.due||null,status:r.status||"offen",created:r.created,doneAt:r.done_at||null,order:typeof r.ord==="number"?r.ord:null,subtasks:Array.isArray(r.subtasks)?r.subtasks:[],color:r.color||""}}
 function save(id,data,kind){
   if(kind==="delete")state.tasks.delete(id);
   else if(kind==="set")state.tasks.set(id,Object.assign({id},data));
@@ -721,7 +760,7 @@ function save(id,data,kind){
   queues.set(id,next);return next;
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-function handleErr(e){console.error(e);if(e&&/subtasks/i.test(e.message||"")){toast("Für Unteraufgaben fehlt noch das kurze Datenbank-Update (supabase-update-unteraufgaben.sql).");fetchAll();return}toast(navigator.onLine?"Konnte nicht speichern. Die Liste wird neu geladen.":"Keine Internetverbindung. Änderung nicht gespeichert.");fetchAll()}
+function handleErr(e){console.error(e);if(e&&/subtasks|color/i.test(e.message||"")){toast("Dafür fehlt noch das kurze Datenbank-Update (supabase-update.sql im SQL Editor ausführen).");fetchAll();return}toast(navigator.onLine?"Konnte nicht speichern. Die Liste wird neu geladen.":"Keine Internetverbindung. Änderung nicht gespeichert.");fetchAll()}
 async function fetchAll(){
   if(!sb||!session)return;
   const {data,error}=await sb.from("tasks").select("*").order("created",{ascending:true}).limit(5000);
@@ -768,7 +807,7 @@ function openEdit(id){const t=state.tasks.get(id);if(!t)return;state.editing=id;
   $("#ePrio").value=String(t.prio||2);$("#eStatus").value=t.status||"offen";
   $("#eCreated").textContent=t.created?"Angelegt "+new Date(t.created).toLocaleString("de-DE",{dateStyle:"medium",timeStyle:"short"}):"";
   ["eTitle","eNotes","eProject","eDue","ePrio","eStatus","eSave","eDelete"].forEach(i=>{$("#"+i).disabled=state.readonly});
-  renderDrawerSubs();
+  renderDrawerSubs();renderColors();
   $("#scrim").hidden=false;$("#drawer").hidden=false;setTimeout(()=>$("#eTitle").focus(),0)}
 function closeEdit(){state.editing=null;$("#scrim").hidden=true;$("#drawer").hidden=true}
 $("#dClose").addEventListener("click",closeEdit);$("#scrim").addEventListener("click",closeEdit);
@@ -796,7 +835,7 @@ $("#fImport").addEventListener("change",async e=>{
   const file=e.target.files&&e.target.files[0];e.target.value="";if(!file)return;
   let list;try{const j=JSON.parse(await file.text());list=Array.isArray(j)?j:j.tasks}catch(err){toast("Die Datei ist kein gültiger Pensum-Export.");return}
   if(!Array.isArray(list)||!list.length){toast("In der Datei sind keine Aufgaben.");return}
-  const rows=list.filter(t=>t&&t.title).map(t=>Object.assign({id:String(t.id||newId())},toRow(Object.assign({title:t.title,notes:t.notes||"",project:t.project||"",prio:[1,2,3].includes(t.prio)?t.prio:2,due:t.due||null,status:["offen","arbeit","erledigt"].includes(t.status)?t.status:"offen",created:t.created||new Date().toISOString(),doneAt:t.doneAt||null,order:typeof t.order==="number"?t.order:null},Array.isArray(t.subtasks)&&t.subtasks.length?{subtasks:t.subtasks}:{}))));
+  const rows=list.filter(t=>t&&t.title).map(t=>Object.assign({id:String(t.id||newId())},toRow(Object.assign({title:t.title,notes:t.notes||"",project:t.project||"",prio:[1,2,3].includes(t.prio)?t.prio:2,due:t.due||null,status:["offen","arbeit","erledigt"].includes(t.status)?t.status:"offen",created:t.created||new Date().toISOString(),doneAt:t.doneAt||null,order:typeof t.order==="number"?t.order:null},Array.isArray(t.subtasks)&&t.subtasks.length?{subtasks:t.subtasks}:{},t.color?{color:t.color}:{}))));
   for(let i=0;i<rows.length;i+=200){const {error}=await sb.from("tasks").upsert(rows.slice(i,i+200));if(error){console.error(error);toast("Import fehlgeschlagen: "+error.message);return}}
   await fetchAll();toast(rows.length+(rows.length===1?" Aufgabe":" Aufgaben")+" importiert");
 });
