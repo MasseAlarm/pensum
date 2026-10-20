@@ -155,7 +155,11 @@ input.sadd:focus{border-bottom-color:var(--accent)}
 .drawer input.stitle-in:focus{border-bottom-color:var(--accent);outline:none}
 .sdel{flex:none;border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:0 4px}
 .sdel:hover{color:var(--danger)}
-.sub .grip{height:18px}
+.sgrip{flex:none;width:14px;height:18px;border:0;background:none;padding:0;color:var(--muted);opacity:.35;cursor:grab;touch-action:none;display:grid;place-items:center;border-radius:4px}
+.sgrip svg{width:7px;height:12px;fill:currentColor}
+.sub:hover .sgrip,.sgrip:focus-visible{opacity:.85}
+@media (hover:none){.sgrip{opacity:.6}}
+.subs .sortable-ghost{background:var(--accent-soft);opacity:.5;border-radius:6px}
 .dsubs{display:flex;flex-direction:column;gap:4px}
 .dlabel{font-size:12.5px;font-weight:600;color:var(--muted);display:flex;gap:8px;align-items:baseline}
 .dlabel span{font-family:var(--f-mono);font-weight:400}
@@ -487,6 +491,7 @@ function addSubs(id,text){const t=state.tasks.get(id);if(!t)return;
   const lines=String(text).split(/\n|;/).map(l=>l.replace(/^\s*(?:[-*•–]|\d+(?:\.\d+)*\.?|[a-z]\))\s+/i,"").trim()).filter(Boolean);
   if(!lines.length)return;setSubs(id,subs(t).concat(lines.map(l=>({id:subId(),title:l,done:false}))))}
 function subsEl(t,inDrawer){const list=subs(t),mode=inDrawer?":d":":l";
+  const sortable=canSort()&&list.length>1&&(inDrawer||t.status!=="erledigt");
   const ol=h("ol",{class:"subs"},list.map((s,i)=>{
     let titleEl;
     if(inDrawer&&!state.readonly){titleEl=h("input",{class:"stitle-in",value:s.title,"aria-label":"Unteraufgabe "+(i+1)});
@@ -494,7 +499,7 @@ function subsEl(t,inDrawer){const list=subs(t),mode=inDrawer?":d":":l";
       titleEl.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();titleEl.blur()}});}
     else titleEl=h("span",{class:"stitle"},s.title);
     return h("li",{class:"sub"+(s.done?" done":""),"data-sid":s.id},
-      inDrawer&&canSort()&&gripEl(),
+      sortable&&gripEl("sgrip"),
       h("button",{type:"button",class:"scheck","aria-pressed":String(!!s.done),"aria-label":(s.done?"Wieder öffnen: ":"Erledigt: ")+s.title,disabled:state.readonly,onclick:()=>setSubs(t.id,subs(state.tasks.get(t.id)).map(x=>x.id===s.id?Object.assign({},x,{done:!x.done}):x))},checkIcon()),
       h("span",{class:"snum"},(i+1)+"."),titleEl,
       inDrawer&&!state.readonly&&h("button",{type:"button",class:"sdel","aria-label":"Unteraufgabe löschen",onclick:()=>setSubs(t.id,subs(state.tasks.get(t.id)).filter(x=>x.id!==s.id))},"×"))}));
@@ -505,16 +510,21 @@ function subsEl(t,inDrawer){const list=subs(t),mode=inDrawer?":d":":l";
       if(e.key==="Escape"&&!inDrawer){add.blur()}});
     add.addEventListener("paste",e=>{const txt=(e.clipboardData||window.clipboardData).getData("text");if(/\n/.test(txt)){e.preventDefault();state.focusAdd=t.id+mode;addSubs(t.id,txt)}});
     wrap.append(add)}
-  if(inDrawer&&canSort()&&list.length>1)window.Sortable.create(ol,{handle:".grip",draggable:".sub",animation:150,onEnd:()=>{
-    const order=[...ol.children].map(li=>li.dataset.sid);const cur=subs(state.tasks.get(t.id));
-    setSubs(t.id,order.map(sid=>cur.find(x=>x.id===sid)).filter(Boolean))}});
+  if(sortable)window.Sortable.create(ol,{handle:".sgrip",draggable:".sub",animation:150,fallbackOnBody:true,
+    onStart:()=>{state.dragging=true},
+    onEnd:evt=>{state.dragging=false;
+      if(evt.oldIndex===evt.newIndex){render();return}
+      const order=[...ol.children].map(li=>li.dataset.sid);const cur=subs(state.tasks.get(t.id));
+      const next=order.map(sid=>cur.find(x=>x.id===sid)).filter(Boolean);
+      cur.forEach(x=>{if(!next.includes(x))next.push(x)});
+      setSubs(t.id,next)}});
   return wrap}
 function renderDrawerSubs(){
   const t=state.tasks.get(state.editing);const box=$("#eSubs");if(!t||!box)return;
   if(box.contains(document.activeElement)&&document.activeElement.classList.contains("stitle-in"))return;
   $("#eSubProg").textContent=subProg(t);box.replaceChildren(subsEl(t,true))}
 function canSort(){return typeof window.Sortable!=="undefined"&&!state.readonly}
-function gripEl(){const b=h("button",{type:"button",class:"grip","aria-label":"Zum Verschieben ziehen",title:"Zum Verschieben ziehen"});
+function gripEl(cls){const b=h("button",{type:"button",class:cls||"grip","aria-label":"Zum Verschieben ziehen",title:"Zum Verschieben ziehen"});
   b.innerHTML='<svg viewBox="0 0 8 14" aria-hidden="true"><circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/></svg>';return b}
 function taskRow(t){const done=t.status==="erledigt";const grip=!done&&canSort();
   return h("article",{class:"task"+(done?" is-done":"")+(grip?" has-grip":""),"data-id":t.id},
