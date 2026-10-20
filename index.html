@@ -130,6 +130,37 @@ button:disabled{cursor:default;opacity:.55}
 .prio.p1 i{background:var(--danger)}
 .prio.p2 i:nth-child(-n+2){background:var(--muted)}
 .prio.p3 i:nth-child(1){background:var(--muted)}
+.subtoggle{display:inline-flex;align-items:center;gap:5px;border:0;background:none;padding:0;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.subtoggle .chev{display:inline-block;font-size:9px;transition:transform .15s}
+.subtoggle[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.subtoggle.full{color:var(--ok)}
+.addsub{border:0;background:none;padding:0;font-size:12px;color:var(--muted);opacity:0;transition:opacity .15s}
+.task:hover .addsub,.addsub:focus-visible{opacity:1}
+@media (hover:none){.addsub{display:none}}
+.subwrap{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.subs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+.sub{display:flex;align-items:center;gap:8px;min-width:0;padding:3px 0}
+.scheck{flex:none;width:16px;height:16px;border-radius:4px;border:1.5px solid var(--muted);background:none;padding:0;display:grid;place-items:center}
+.scheck svg{width:10px;height:10px;opacity:0}
+.scheck:hover:not(:disabled){border-color:var(--ok)}
+.scheck[aria-pressed="true"]{background:var(--ok);border-color:var(--ok)}
+.scheck[aria-pressed="true"] svg{opacity:1;stroke:var(--surface)}
+.snum{flex:none;font-family:var(--f-mono);font-size:11.5px;color:var(--muted);min-width:1.6em;font-variant-numeric:tabular-nums}
+.stitle{font-size:14px;min-width:0;overflow-wrap:anywhere}
+.sub.done .stitle,.sub.done .stitle-in{color:var(--muted);text-decoration:line-through}
+input.sadd{border:0;border-bottom:1px dashed var(--line);border-radius:0;background:none;font-size:13.5px;padding:5px 0 5px 24px;min-width:0;width:100%;outline:none;color:var(--ink)}
+input.sadd:focus{border-bottom-color:var(--accent)}
+.drawer input.sadd{border:0;border-bottom:1px dashed var(--line);border-radius:0;background:none;padding:6px 0;font-size:14px}
+.drawer input.stitle-in{flex:1;border:0;border-bottom:1px solid transparent;border-radius:0;background:none;padding:3px 0;font-size:14.5px}
+.drawer input.stitle-in:focus{border-bottom-color:var(--accent);outline:none}
+.sdel{flex:none;border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:0 4px}
+.sdel:hover{color:var(--danger)}
+.sub .grip{height:18px}
+.dsubs{display:flex;flex-direction:column;gap:4px}
+.dlabel{font-size:12.5px;font-weight:600;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.dlabel span{font-family:var(--f-mono);font-weight:400}
+.sprog{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.sprog.full{color:var(--ok)}
 
 .done-toggle{align-self:flex-start;border:0;background:none;color:var(--muted);font-weight:500;padding:2px 4px;display:inline-flex;gap:8px;align-items:baseline}
 .done-toggle .n{font-family:var(--f-mono);font-size:12px}
@@ -311,7 +342,8 @@ button:disabled{cursor:default;opacity:.55}
   <form id="editForm">
     <header><h2 id="dTitle">Aufgabe bearbeiten</h2><button type="button" class="x" id="dClose" aria-label="Schließen">×</button></header>
     <label for="eTitle">Titel<input id="eTitle" required></label>
-    <label for="eNotes">Notizen<textarea id="eNotes" rows="5" placeholder="Details, Links, nächste Schritte"></textarea></label>
+    <label for="eNotes">Notizen<textarea id="eNotes" rows="4" placeholder="Details, Links, nächste Schritte"></textarea></label>
+    <div class="dsubs"><div class="dlabel">Unteraufgaben <span id="eSubProg"></span></div><div id="eSubs"></div></div>
     <div class="two">
       <label for="eProject">Projekt<input id="eProject" list="projList" placeholder="z. B. Paper"></label>
       <label for="eDue">Fällig<input id="eDue" type="date"></label>
@@ -345,7 +377,8 @@ const PENSUM_CONFIG = {
 (function(){
 "use strict";
 const $=s=>document.querySelector(s);
-const state={tasks:new Map(),loaded:false,mode:"loading",readonly:false,view:"list",project:null,q:"",showDone:false,editing:null};
+const state={tasks:new Map(),loaded:false,mode:"loading",readonly:false,view:"list",project:null,q:"",showDone:false,editing:null,focusAdd:null};
+try{state.expanded=new Set(JSON.parse(localStorage.getItem("pensum.open")||"[]"))}catch(e){state.expanded=new Set()}
 let col=null;
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
@@ -414,6 +447,8 @@ function render(){
   renderSummary();renderChips();
   if(state.view==="list")renderList();else if(state.view==="board")renderBoard();else renderCal();
   const dl=$("#projList");dl.replaceChildren(...projects().map(p=>h("option",{value:p[0]})));
+  if(state.editing)renderDrawerSubs();
+  if(state.focusAdd){const f=document.querySelector('[data-for="'+state.focusAdd+'"]');if(f)f.focus();state.focusAdd=null}
 }
 function renderSummary(){
   const el=$("#summary");if(!state.loaded){el.textContent="Lade …";return}
@@ -438,7 +473,46 @@ function metaEl(t){const done=t.status==="erledigt";
     !done&&h("button",{type:"button",class:"status"+(t.status==="arbeit"?" on":""),disabled:state.readonly,"aria-pressed":String(t.status==="arbeit"),onclick:()=>setStatus(t.id,t.status==="arbeit"?"offen":"arbeit")},t.status==="arbeit"?"In Arbeit":"Starten"),
     t.project&&h("button",{type:"button",class:"proj",onclick:()=>{state.project=t.project;render()}},"#"+t.project),
     t.due&&!done&&h("span",{class:"due d-"+groupOf(t)},fmtDue(t.due)),
-    t.notes&&h("span",{class:"note",title:t.notes},"· Notiz"))}
+    subs(t).length?h("button",{type:"button",class:"subtoggle"+(subDone(t)===subs(t).length?" full":""),"aria-expanded":String(state.expanded.has(t.id)),title:"Unteraufgaben ein-/ausklappen",onclick:()=>toggleExp(t.id)},h("span",{class:"chev","aria-hidden":"true"},"▶"),subProg(t)):null,
+    t.notes&&h("span",{class:"note",title:t.notes},"· Notiz"),
+    !done&&!subs(t).length&&!state.expanded.has(t.id)&&!state.readonly&&h("button",{type:"button",class:"addsub",onclick:()=>{state.focusAdd=t.id+":l";toggleExp(t.id)}},"+ Unteraufgaben"))}
+/* ---------- Unteraufgaben ---------- */
+function subs(t){return Array.isArray(t.subtasks)?t.subtasks:[]}
+function subDone(t){return subs(t).filter(x=>x.done).length}
+function subProg(t){const n=subs(t).length;return n?subDone(t)+"/"+n:""}
+function subId(){return Math.random().toString(36).slice(2,10)}
+function setSubs(id,arr){save(id,{subtasks:arr},"update")}
+function toggleExp(id){state.expanded.has(id)?state.expanded.delete(id):state.expanded.add(id);lsSet("pensum.open",JSON.stringify([...state.expanded]));render()}
+function addSubs(id,text){const t=state.tasks.get(id);if(!t)return;
+  const lines=String(text).split(/\n|;/).map(l=>l.replace(/^\s*(?:[-*•–]|\d+(?:\.\d+)*\.?|[a-z]\))\s+/i,"").trim()).filter(Boolean);
+  if(!lines.length)return;setSubs(id,subs(t).concat(lines.map(l=>({id:subId(),title:l,done:false}))))}
+function subsEl(t,inDrawer){const list=subs(t),mode=inDrawer?":d":":l";
+  const ol=h("ol",{class:"subs"},list.map((s,i)=>{
+    let titleEl;
+    if(inDrawer&&!state.readonly){titleEl=h("input",{class:"stitle-in",value:s.title,"aria-label":"Unteraufgabe "+(i+1)});
+      titleEl.addEventListener("change",()=>{const v=titleEl.value.trim();setSubs(t.id,v?subs(state.tasks.get(t.id)).map(x=>x.id===s.id?Object.assign({},x,{title:v}):x):subs(state.tasks.get(t.id)).filter(x=>x.id!==s.id))});
+      titleEl.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();titleEl.blur()}});}
+    else titleEl=h("span",{class:"stitle"},s.title);
+    return h("li",{class:"sub"+(s.done?" done":""),"data-sid":s.id},
+      inDrawer&&canSort()&&gripEl(),
+      h("button",{type:"button",class:"scheck","aria-pressed":String(!!s.done),"aria-label":(s.done?"Wieder öffnen: ":"Erledigt: ")+s.title,disabled:state.readonly,onclick:()=>setSubs(t.id,subs(state.tasks.get(t.id)).map(x=>x.id===s.id?Object.assign({},x,{done:!x.done}):x))},checkIcon()),
+      h("span",{class:"snum"},(i+1)+"."),titleEl,
+      inDrawer&&!state.readonly&&h("button",{type:"button",class:"sdel","aria-label":"Unteraufgabe löschen",onclick:()=>setSubs(t.id,subs(state.tasks.get(t.id)).filter(x=>x.id!==s.id))},"×"))}));
+  const wrap=h("div",{class:"subwrap"},ol);
+  if(!state.readonly&&t.status!=="erledigt"||inDrawer&&!state.readonly){
+    const add=h("input",{class:"sadd",placeholder:list.length?"Weitere Unteraufgabe …":"Unteraufgabe hinzufügen … (Enter)","aria-label":"Unteraufgabe hinzufügen","data-for":t.id+mode,enterkeyhint:"done"});
+    add.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();if(!add.value.trim())return;state.focusAdd=t.id+mode;addSubs(t.id,add.value);add.value=""}
+      if(e.key==="Escape"&&!inDrawer){add.blur()}});
+    add.addEventListener("paste",e=>{const txt=(e.clipboardData||window.clipboardData).getData("text");if(/\n/.test(txt)){e.preventDefault();state.focusAdd=t.id+mode;addSubs(t.id,txt)}});
+    wrap.append(add)}
+  if(inDrawer&&canSort()&&list.length>1)window.Sortable.create(ol,{handle:".grip",draggable:".sub",animation:150,onEnd:()=>{
+    const order=[...ol.children].map(li=>li.dataset.sid);const cur=subs(state.tasks.get(t.id));
+    setSubs(t.id,order.map(sid=>cur.find(x=>x.id===sid)).filter(Boolean))}});
+  return wrap}
+function renderDrawerSubs(){
+  const t=state.tasks.get(state.editing);const box=$("#eSubs");if(!t||!box)return;
+  if(box.contains(document.activeElement)&&document.activeElement.classList.contains("stitle-in"))return;
+  $("#eSubProg").textContent=subProg(t);box.replaceChildren(subsEl(t,true))}
 function canSort(){return typeof window.Sortable!=="undefined"&&!state.readonly}
 function gripEl(){const b=h("button",{type:"button",class:"grip","aria-label":"Zum Verschieben ziehen",title:"Zum Verschieben ziehen"});
   b.innerHTML='<svg viewBox="0 0 8 14" aria-hidden="true"><circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/></svg>';return b}
@@ -446,7 +520,7 @@ function taskRow(t){const done=t.status==="erledigt";const grip=!done&&canSort()
   return h("article",{class:"task"+(done?" is-done":"")+(grip?" has-grip":""),"data-id":t.id},
     grip&&gripEl(),
     h("button",{type:"button",class:"check","aria-label":done?"Wieder öffnen":"Als erledigt markieren","aria-pressed":String(done),disabled:state.readonly,onclick:()=>toggleDone(t.id)},checkIcon()),
-    h("div",{class:"body"},h("button",{type:"button",class:"title",onclick:()=>openEdit(t.id)},t.title||"(ohne Titel)"),metaEl(t)),
+    h("div",{class:"body"},h("button",{type:"button",class:"title",onclick:()=>openEdit(t.id)},t.title||"(ohne Titel)"),metaEl(t),state.expanded.has(t.id)&&subsEl(t,false)),
     prioEl(t.prio||2))}
 function groupHead(key,label,n){
   const d=today();let sub=null;
@@ -509,7 +583,7 @@ function setCal(mode,anchor){if(mode){state.calMode=mode;lsSet("pensum.cal",mode
 function calChip(t){const done=t.status==="erledigt";const over=!done&&t.due&&daysUntil(t.due)<0;
   return h("article",{class:"cchip"+(done?" is-done":"")+(t.status==="arbeit"&&!done?" is-active":"")+(over?" is-over":""),"data-id":t.id},
     h("button",{type:"button",class:"ctitle",title:t.title,onclick:()=>openEdit(t.id)},t.title||"(ohne Titel)"),
-    (t.project||t.prio===1)&&h("span",{class:"cmeta"},t.prio===1&&h("span",{class:"chigh",title:"Priorität hoch"},"!"),t.project&&"#"+t.project))}
+    (t.project||t.prio===1||subs(t).length)&&h("span",{class:"cmeta"},t.prio===1&&h("span",{class:"chigh",title:"Priorität hoch"},"!"),t.project&&"#"+t.project,subs(t).length&&h("span",{class:"sprog"+(subDone(t)===subs(t).length?" full":""),title:"Unteraufgaben erledigt"},"✓"+subProg(t))))}
 function dayItems(byDay,key){return (byDay.get(key)||[]).slice().sort((a,b)=>{const da=a.status==="erledigt",dbb=b.status==="erledigt";return da!==dbb?(da?1:-1):cmp(a,b)})}
 function renderCal(){
   const root=$("#cal");root.replaceChildren();
@@ -605,7 +679,7 @@ function renderBoard(){
     items.forEach(t=>{
       const card=h("article",{class:"card"+(st==="erledigt"?" is-done":""),draggable:state.readonly?"false":"true","data-id":t.id},
         h("button",{type:"button",class:"title",onclick:()=>openEdit(t.id)},t.title||"(ohne Titel)"),prioEl(t.prio||2),
-        h("div",{class:"meta"},t.project&&h("button",{type:"button",class:"proj",onclick:()=>{state.project=t.project;render()}},"#"+t.project),t.due&&st!=="erledigt"&&h("span",{class:"due d-"+groupOf(t)},fmtDue(t.due))),
+        h("div",{class:"meta"},t.project&&h("button",{type:"button",class:"proj",onclick:()=>{state.project=t.project;render()}},"#"+t.project),t.due&&st!=="erledigt"&&h("span",{class:"due d-"+groupOf(t)},fmtDue(t.due)),subs(t).length&&h("span",{class:"sprog"+(subDone(t)===subs(t).length?" full":""),title:"Unteraufgaben erledigt"},"✓ "+subProg(t))),
         !state.readonly&&h("div",{class:"moves"},
           ci>0&&h("button",{type:"button","aria-label":"Nach "+COLS[ci-1][1]+" verschieben",onclick:()=>setStatus(t.id,COLS[ci-1][0])},"← "+COLS[ci-1][1]),
           ci<2&&h("button",{type:"button","aria-label":"Nach "+COLS[ci+1][1]+" verschieben",onclick:()=>setStatus(t.id,COLS[ci+1][0])},COLS[ci+1][1]+" →")));
@@ -620,10 +694,10 @@ let sb=null,session=null,channel=null,startedFor=null;
 const queues=new Map();
 function newId(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,9)}
 function clean(t){const o=Object.assign({},t);delete o.id;return o}
-const FIELD={title:"title",notes:"notes",project:"project",prio:"prio",due:"due",status:"status",created:"created",doneAt:"done_at",order:"ord"};
+const FIELD={title:"title",notes:"notes",project:"project",prio:"prio",due:"due",status:"status",created:"created",doneAt:"done_at",order:"ord",subtasks:"subtasks"};
 function toRow(data){const r={};for(const k in FIELD){if(k in data)r[FIELD[k]]=data[k]===undefined?null:data[k]}
-  if("title" in r&&r.title==null)r.title="";if("notes" in r&&r.notes==null)r.notes="";if("project" in r&&r.project==null)r.project="";return r}
-function fromRow(r){return {id:r.id,title:r.title||"",notes:r.notes||"",project:r.project||"",prio:r.prio||2,due:r.due||null,status:r.status||"offen",created:r.created,doneAt:r.done_at||null,order:typeof r.ord==="number"?r.ord:null}}
+  if("title" in r&&r.title==null)r.title="";if("notes" in r&&r.notes==null)r.notes="";if("project" in r&&r.project==null)r.project="";if("subtasks" in r&&!Array.isArray(r.subtasks))r.subtasks=[];return r}
+function fromRow(r){return {id:r.id,title:r.title||"",notes:r.notes||"",project:r.project||"",prio:r.prio||2,due:r.due||null,status:r.status||"offen",created:r.created,doneAt:r.done_at||null,order:typeof r.ord==="number"?r.ord:null,subtasks:Array.isArray(r.subtasks)?r.subtasks:[]}}
 function save(id,data,kind){
   if(kind==="delete")state.tasks.delete(id);
   else if(kind==="set")state.tasks.set(id,Object.assign({id},data));
@@ -637,7 +711,7 @@ function save(id,data,kind){
   queues.set(id,next);return next;
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-function handleErr(e){console.error(e);toast(navigator.onLine?"Konnte nicht speichern. Die Liste wird neu geladen.":"Keine Internetverbindung. Änderung nicht gespeichert.");fetchAll()}
+function handleErr(e){console.error(e);if(e&&/subtasks/i.test(e.message||"")){toast("Für Unteraufgaben fehlt noch das kurze Datenbank-Update (supabase-update-unteraufgaben.sql).");fetchAll();return}toast(navigator.onLine?"Konnte nicht speichern. Die Liste wird neu geladen.":"Keine Internetverbindung. Änderung nicht gespeichert.");fetchAll()}
 async function fetchAll(){
   if(!sb||!session)return;
   const {data,error}=await sb.from("tasks").select("*").order("created",{ascending:true}).limit(5000);
@@ -684,6 +758,7 @@ function openEdit(id){const t=state.tasks.get(id);if(!t)return;state.editing=id;
   $("#ePrio").value=String(t.prio||2);$("#eStatus").value=t.status||"offen";
   $("#eCreated").textContent=t.created?"Angelegt "+new Date(t.created).toLocaleString("de-DE",{dateStyle:"medium",timeStyle:"short"}):"";
   ["eTitle","eNotes","eProject","eDue","ePrio","eStatus","eSave","eDelete"].forEach(i=>{$("#"+i).disabled=state.readonly});
+  renderDrawerSubs();
   $("#scrim").hidden=false;$("#drawer").hidden=false;setTimeout(()=>$("#eTitle").focus(),0)}
 function closeEdit(){state.editing=null;$("#scrim").hidden=true;$("#drawer").hidden=true}
 $("#dClose").addEventListener("click",closeEdit);$("#scrim").addEventListener("click",closeEdit);
@@ -711,7 +786,7 @@ $("#fImport").addEventListener("change",async e=>{
   const file=e.target.files&&e.target.files[0];e.target.value="";if(!file)return;
   let list;try{const j=JSON.parse(await file.text());list=Array.isArray(j)?j:j.tasks}catch(err){toast("Die Datei ist kein gültiger Pensum-Export.");return}
   if(!Array.isArray(list)||!list.length){toast("In der Datei sind keine Aufgaben.");return}
-  const rows=list.filter(t=>t&&t.title).map(t=>Object.assign({id:String(t.id||newId())},toRow({title:t.title,notes:t.notes||"",project:t.project||"",prio:[1,2,3].includes(t.prio)?t.prio:2,due:t.due||null,status:["offen","arbeit","erledigt"].includes(t.status)?t.status:"offen",created:t.created||new Date().toISOString(),doneAt:t.doneAt||null,order:typeof t.order==="number"?t.order:null})));
+  const rows=list.filter(t=>t&&t.title).map(t=>Object.assign({id:String(t.id||newId())},toRow(Object.assign({title:t.title,notes:t.notes||"",project:t.project||"",prio:[1,2,3].includes(t.prio)?t.prio:2,due:t.due||null,status:["offen","arbeit","erledigt"].includes(t.status)?t.status:"offen",created:t.created||new Date().toISOString(),doneAt:t.doneAt||null,order:typeof t.order==="number"?t.order:null},Array.isArray(t.subtasks)&&t.subtasks.length?{subtasks:t.subtasks}:{}))));
   for(let i=0;i<rows.length;i+=200){const {error}=await sb.from("tasks").upsert(rows.slice(i,i+200));if(error){console.error(error);toast("Import fehlgeschlagen: "+error.message);return}}
   await fetchAll();toast(rows.length+(rows.length===1?" Aufgabe":" Aufgaben")+" importiert");
 });
